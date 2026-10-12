@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  actors, apply, believe, botAction, createGame, hideoutCandidates, jackLocation, viewFor,
+  BOT_LEVELS, actors, apply, believe, botAction, createGame, hideoutBelief, hideoutCandidates, jackLocation, viewFor,
   type GameState, type Player,
 } from '../src/index.ts';
 
@@ -53,6 +53,28 @@ describe('bots', () => {
         expect(hideoutCandidates(s.trails)).toContain(s.hideout);
       });
     }
+  });
+
+  it('every difficulty level plays complete games with legal moves, final guess included', () => {
+    for (const [i, level] of BOT_LEVELS.entries()) {
+      const rng = mulberry32(100 + i);
+      let s = createGame(players, rng, { finalGuess: true });
+      let guessed = false;
+      for (let n = 0; n < 4000 && s.phase !== 'gameOver'; n++) {
+        const id = actors(s)[0];
+        if (s.phase === 'hideoutGuess') guessed = true;
+        s = apply(s, id, botAction(viewFor(s, id), rng, level));
+      }
+      expect(s.phase).toBe('gameOver');
+      if (guessed) expect(s.events!.at(-1)!.kind).toBe('raid');
+    }
+  }, 60_000);
+
+  it('the hideout belief always keeps the true hideout possible', () => {
+    simulate(21, (s) => {
+      if (!s.trails.some((t) => t.escaped)) return;
+      expect(hideoutBelief(s.trails).get(s.hideout!) ?? 0).toBeGreaterThan(0);
+    });
   });
 
   it('detective bots only see the detective view', () => {

@@ -4,12 +4,15 @@ import { RED_CIRCLES, YELLOW_CROSSINGS, alleyDestinations, circleNeighbors, coac
 import type { GameView } from '../engine/view.ts';
 import { jackBotAction } from './jack.ts';
 import { policeBotAction } from './police.ts';
+import { skillOf, type BotLevel } from './skill.ts';
 
-export { believe, hideoutCandidates, type Belief } from './inference.ts';
+export { believe, hideoutBelief, hideoutCandidates, type Belief } from './inference.ts';
+export { BOT_LEVELS, LEVEL_NAMES, type BotLevel } from './skill.ts';
 
-/** The action a bot takes, decided only from what its player is allowed to see. */
-export function botAction(view: GameView, rng: () => number = Math.random): Action {
-  return view.you.role === 'jack' ? jackBotAction(view, rng) : policeBotAction(view, rng);
+/** The action a bot takes at the given difficulty, decided only from what its player is allowed to see. */
+export function botAction(view: GameView, rng: () => number = Math.random, level: BotLevel = 'hard'): Action {
+  if (view.you.role === 'jack') return jackBotAction(view, rng, skillOf(level, 'jack'));
+  return policeBotAction(view, rng, skillOf(level, 'detective'));
 }
 
 /** The plainest legal action, used if the bot's own choice is ever refused, so a game can never get stuck. */
@@ -52,6 +55,8 @@ export function fallbackAction(v: GameView): Action {
       if (s) return { type: 'search', color: s.color, circle: searchTargets(v as unknown as GameState, s.color)[0] };
       return { type: 'policeSkip', color: v.pendingColors[0] };
     }
+    case 'hideoutGuess':
+      return { type: 'guessHideout', circle: [...Array(195).keys()].map((i) => i + 1).find((c) => !RED_CIRCLES.includes(c))! };
     default:
       throw new Error(`No action in phase ${v.phase}`);
   }

@@ -137,3 +137,73 @@ svg.board.dim .vec-x { fill: #cdb894; }
 .ed-x.goulston { stroke: #f44; stroke-width: 2.5; }
 .ed-x.cyan { fill: var(--target); }
 .ed-j { fill: #f33; cursor: pointer; }
+
+/* ---------------------------------------------------------------- search / arrest / raid animations
+   Every piece starts after var(--d) (staggering) plus its own offset; timings match Effects.tsx. */
+.fx * { transform-box: fill-box; transform-origin: center; }
+.fx-word { font: bold 12px Georgia, serif; text-anchor: middle; paint-order: stroke; stroke: #000; stroke-width: 3px; opacity: 0; }
+
+/* the policeman looks towards the circle */
+.fx-gaze { stroke: var(--col); stroke-width: 1.6; stroke-dasharray: 4 3; opacity: 0;
+  animation: fx-gaze 900ms ease-out var(--d) both; }
+.fx-gaze-arrest { stroke-width: 2.2; }
+@keyframes fx-gaze { 0% { opacity: 0; } 20% { opacity: 0.95; } 70% { opacity: 0.8; } 100% { opacity: 0; } }
+
+/* search: the magnifying glass travels from the policeman and scans the circle */
+.fx-travel { animation: fx-travel 1700ms ease-out var(--d) both; }
+@keyframes fx-travel {
+  0% { transform: translate(var(--dx), var(--dy)) scale(0.5); opacity: 0; }
+  8% { opacity: 1; }
+  35% { transform: translate(0, 0) scale(1.15); }
+  45% { transform: translate(0, 0) scale(1); }
+  85% { opacity: 1; }
+  100% { transform: translate(0, 0) scale(1); opacity: 0; }
+}
+.fx-scan { animation: fx-scan 450ms ease-in-out calc(var(--d) + 600ms) 2 both; }
+@keyframes fx-scan { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(3px, -2px); } 75% { transform: translate(-3px, 2px); } }
+.fx-lens { fill: #ffffff40; stroke: var(--col); stroke-width: 2.6; }
+.fx-handle { stroke: var(--col); stroke-width: 3.4; stroke-linecap: round; }
+
+.fx-burst { fill: none; stroke: #ffd84d; stroke-width: 3; opacity: 0; animation: fx-burst 700ms ease-out calc(var(--d) + 950ms) both; }
+.fx-burst.fx-late { animation-delay: calc(var(--d) + 1150ms); }
+@keyframes fx-burst { 0% { transform: scale(0.6); opacity: 1; } 100% { transform: scale(3.2); opacity: 0; } }
+.fx-ray { stroke: #ffd84d; stroke-width: 2.5; stroke-linecap: round; opacity: 0; animation: fx-ray 600ms ease-out calc(var(--d) + 950ms) both; }
+@keyframes fx-ray { 0% { opacity: 1; stroke-dasharray: 0 10; } 60% { opacity: 1; stroke-dasharray: 10 0; } 100% { opacity: 0; } }
+.fx-clue { fill: #ffd84d; animation: fx-rise 800ms ease-out calc(var(--d) + 950ms) both; }
+.fx-nothing { fill: #ddd; font-style: italic; font-weight: normal; animation: fx-rise 750ms ease-out calc(var(--d) + 950ms) both; }
+@keyframes fx-rise { 0% { opacity: 0; transform: translateY(6px) scale(0.8); } 25% { opacity: 1; transform: translateY(0) scale(1.1); }
+  75% { opacity: 1; transform: translateY(-4px) scale(1); } 100% { opacity: 0; transform: translateY(-10px); } }
+.fx-miss line { stroke: #ccc; stroke-width: 2.5; stroke-linecap: round; }
+.fx-miss { opacity: 0; animation: fx-fade 700ms ease-out calc(var(--d) + 950ms) both; }
+@keyframes fx-fade { 0% { opacity: 0; } 30% { opacity: 0.9; } 100% { opacity: 0; } }
+
+/* arrest: a ring in the policeman's colour closes in on the circle */
+.fx-noose { fill: none; stroke: var(--col); stroke-width: 3.5; opacity: 0; animation: fx-noose 900ms cubic-bezier(.3,.8,.4,1) var(--d) both; }
+.fx-noose.fx-late { stroke-dasharray: 6 4; animation-delay: calc(var(--d) + 150ms); }
+@keyframes fx-noose { 0% { transform: scale(3.5) rotate(0deg); opacity: 0; } 25% { opacity: 1; } 80% { transform: scale(1) rotate(90deg); opacity: 1; }
+  100% { transform: scale(1) rotate(90deg); opacity: 0; } }
+.fx-arrest-call { fill: #fff; animation: fx-rise 900ms ease-out calc(var(--d) + 150ms) both; }
+.fx-nobody { fill: #bbb; font-size: 12px; animation: fx-rise 900ms ease-out calc(var(--d) + 950ms) both; }
+.fx-caught { fill: #ff4a3d; font-size: 15px; animation: fx-stamp 1000ms ease-out calc(var(--d) + 900ms) both; }
+@keyframes fx-stamp { 0% { opacity: 0; transform: scale(2.4); } 25% { opacity: 1; transform: scale(1); } 85% { opacity: 1; } 100% { opacity: 0.9; } }
+.fx-flash { fill: #ff3b2f; opacity: 0; animation: fx-flash 900ms ease-out calc(var(--d) + 850ms) both; }
+@keyframes fx-flash { 0% { transform: scale(0.5); opacity: 0.9; } 100% { transform: scale(5); opacity: 0; } }
+.fx-cuffs circle, .fx-cuffs line { fill: none; stroke: #e8e8e8; stroke-width: 2.4; }
+.fx-cuffs { opacity: 0; animation: fx-stamp 1000ms ease-out calc(var(--d) + 900ms) both; }
+
+/* the final raid: a lantern beam sweeps over the suspected hideout */
+.fx-lantern { fill: #ffe9a8; opacity: 0; animation: fx-lantern 3000ms ease-in-out var(--d) both; }
+@keyframes fx-lantern { 0% { transform: scale(2.5); opacity: 0; } 30% { opacity: 0.35; } 60% { transform: scale(0.4); opacity: 0.5; } 100% { transform: scale(0.4); opacity: 0; } }
+.fx-sweep { fill: none; stroke: #ffd84d; stroke-width: 3; opacity: 0; animation: fx-noose 1600ms cubic-bezier(.3,.8,.4,1) calc(var(--d) + 400ms) both; }
+.fx-raid-call { fill: #ffd84d; font-size: 14px; animation: fx-rise 1200ms ease-out var(--d) both; }
+.fx-raid .fx-caught, .fx-raid .fx-nobody { animation-delay: calc(var(--d) + 1800ms); animation-duration: 1400ms; }
+.fx-raid .fx-flash { animation-delay: calc(var(--d) + 1750ms); }
+/* the board's "Animations" button turns them off (saved per browser) */
+.fx-toggle { position: absolute; left: 8px; bottom: 40px; }
+
+/* difficulty pickers and lobby options */
+.levels { display: flex; gap: 4px; }
+.levels .level { flex: 1; background: #4a3b30; padding: 6px 4px; }
+.levels .level.sel { background: var(--accent); outline: 2px solid var(--gold); }
+.bot-level { margin-left: 8px; font-size: 0.85em; padding: 2px 4px; }
+label.option { display: block; margin: 8px 0; color: var(--ink); }

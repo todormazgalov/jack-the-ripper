@@ -21,10 +21,52 @@ Each browser tab is a separate player, so you can test alone with two tabs.
 
 ## Bots (single player)
 
-On the home page, **Play Jack vs bot police** or **Play the police vs bot Jack** starts a solo game
-right away. In a lobby the host can also **Add a bot** to fill any seat (change its role or
-policemen like any other player). Bots play from their own player's view only, so they never
-see hidden information. They act about 0.7 s apart so you can follow along (`BOT_DELAY_MS` changes that).
+On the home page, pick a difficulty and press **Play Jack vs bot police** or **Play the police vs
+bot Jack** to start a solo game right away. In a lobby the host can also **Add a bot** to fill any
+seat (change its role, policemen or difficulty like any other player). Bots play from their own
+player's view only, so they never see hidden information. They act about 0.7 s apart so you can
+follow along (`BOT_DELAY_MS` changes that).
+
+### Difficulty levels
+
+All levels reason from the same deductions. Lower levels add noise to their judgement and
+sometimes make a plain mistake. Expert plays differently:
+
+- **Expert police** plan all their policemen together, and from the second night they wall in
+  the likely hideouts (Jack's last move home must be a walk, so a hideout with every street held is
+  unreachable).
+- **Expert Jack** predicts where the police will strike, keeps escape routes open, hurries home when
+  the police are close to guessing it, and sometimes walks past his hideout as a bluff.
+
+Measured with the bot arena (200 games per matchup), Jack's win rate:
+
+| Level | Police at this level vs Hard Jack | Jack at this level vs Hard police |
+|---|---|---|
+| Easy | 59% | 11% |
+| Normal | 41% | 24% |
+| Hard | 37% | 37% |
+| Expert | 17% | 43% |
+
+Expert vs Expert: Jack wins 27%. To rerun it: `npm run arena -w shared -- <games per worker> <jack level> <police level>`
+(4 workers in parallel).
+
+### Final hideout guess
+
+A lobby option (on by default). If Jack escapes on the fourth night, the Head of the
+Investigation's player names one circle. If it is Jack's hideout, the police win; otherwise
+Jack wins. The bots guess with the hideout deduction, which takes three things into account:
+- every night ended there;
+- Jack usually goes home at his first chance;
+- the real targets are rarely far from home.
+
+### Animations
+
+Searches, arrest attempts and the final raid are animated on the board:
+- **Search:** a magnifying glass travels from the policeman, then "CLUE!" or "nothing" appears.
+- **Arrest:** a closing ring and "ARREST!", then "Nobody!" or "ARRESTED!".
+- **Final raid:** a lantern beam over the guessed circle.
+
+The **Animations** button on the board turns them off for your browser.
 
 How they think (`shared/src/bot/`):
 
@@ -38,6 +80,7 @@ How they think (`shared/src/bot/`):
 - The Jack bot runs the same deduction on each of its possible moves and picks the one that keeps
   him hidden among many possible locations, out of reach of policemen and with time to get home.
   It uses coaches and alleys when they help.
+
 Running games are saved to `saves/rooms.json` and survive a server restart. If you close a tab,
 use "Rejoin room ... as before" on the home page.
 

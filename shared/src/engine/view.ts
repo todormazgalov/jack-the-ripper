@@ -1,5 +1,5 @@
 import { actors, jackLocation, pendingColors } from './engine.ts';
-import type { Color, GameState, LogEntry, PoliceTurn, Phase, Player, SpecialUse, Trail } from './types.ts';
+import { DEFAULT_OPTIONS, type Color, type GameEvent, type GameOptions, type GameState, type LogEntry, type PoliceTurn, type Phase, type Player, type SpecialUse, type Trail } from './types.ts';
 
 /**
  * What one player is allowed to see. Secret values are replaced by null:
@@ -36,6 +36,9 @@ export interface GameView {
   log: LogEntry[];
   /** public: what the police know about Jack's route each night */
   trails: Trail[];
+  options: GameOptions;
+  /** recent searches, arrests and raids, for the animations */
+  events: GameEvent[];
 }
 
 export function viewFor(s: GameState, playerId: string): GameView {
@@ -72,5 +75,7 @@ export function viewFor(s: GameState, playerId: string): GameView {
     winReason: s.winReason,
     log: s.log.filter((l) => !l.jackOnly || isJack),
     trails: s.trails ?? [],
+    options: s.options ?? DEFAULT_OPTIONS,
+    events: s.events ?? [],
   };
 }

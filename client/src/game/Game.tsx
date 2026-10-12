@@ -318,6 +318,27 @@ export default function Game({ view, room, onLeave }: Props) {
         };
       }
 
+      case 'hideoutGuess': {
+        if (!myTurn) {
+          return waiting(`${headName} (Head of the Investigation)`, isJack
+            ? 'to name your hideout. One guess: if it is right, you are caught'
+            : 'to name Jack\'s hideout (talk it over!)');
+        }
+        const targets = new Set(Array.from({ length: 195 }, (_, i) => i + 1).filter((c) => !RED_CIRCLES.includes(c)));
+        return {
+          prompt: <>
+            <p>Jack has escaped for the last time. <b>One last chance:</b> name his hideout.
+              If you are right, the police raid it and win; if not, Jack wins.</p>
+            <p className="hint">Think back: every night ended on his hideout, and Jack usually heads home as soon as he can
+              (unless he is bluffing). His real targets are rarely far from it either.</p>
+            <button className="danger" disabled={!selC.length || busy} onClick={() => send({ type: 'guessHideout', circle: selC[0] })}>
+              {selC.length ? `Raid circle ${selC[0]}!` : 'Click the circle you suspect'}
+            </button>
+          </>,
+          board: { targetCircles: targets, selectedCircles: selC, onCircle: (c) => targets.has(c) && setSelC([c]) },
+        };
+      }
+
       case 'gameOver':
         return {
           prompt: <>
@@ -359,12 +380,15 @@ export default function Game({ view, room, onLeave }: Props) {
         {isJack && view.sheet && <JackSheet view={view} />}
         <Log entries={view.log} />
         <div className="players-mini">
-          {room.players.map((p) => (
-            <span key={p.id} className={view.actors.includes(p.id) ? 'acting' : ''}>
-              <span className={`dot ${p.connected ? 'on' : 'off'}`} /> {p.name}
-              {p.role === 'jack' ? ' (Jack)' : p.colors.map((c) => <span key={c} className="chip mini" style={{ background: COLOR_HEX[c] }} />)}
-            </span>
-          ))}
+          {room.players.map((p) => {
+            const seat = view.players.find((gp) => gp.id === p.id) ?? p;
+            return (
+              <span key={p.id} className={view.actors.includes(p.id) ? 'acting' : ''}>
+                <span className={`dot ${p.connected ? 'on' : 'off'}`} /> {p.name}
+                {seat.role === 'jack' ? ' (Jack)' : seat.colors.map((c) => <span key={c} className="chip mini" style={{ background: COLOR_HEX[c] }} />)}
+              </span>
+            );
+          })}
         </div>
       </aside>
     </div>

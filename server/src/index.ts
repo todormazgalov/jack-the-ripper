@@ -4,8 +4,8 @@ import { networkInterfaces } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Server, type Socket } from 'socket.io';
-import { GameError, viewFor, type Action, type Color, type Role } from '@jtr/shared';
-import { RoomError, Rooms, type Room, type RoomInfo } from './rooms.ts';
+import { DEFAULT_OPTIONS, GameError, viewFor, type Action, type BotLevel, type Color, type GameOptions, type Role } from '@jtr/shared';
+import { RoomError, Rooms, type LobbyRole, type Room, type RoomInfo } from './rooms.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -32,7 +32,9 @@ function roomInfo(room: Room): RoomInfo {
     started: !!room.game,
     players: room.players.map((p) => ({
       id: p.id, name: p.name, role: p.role, colors: p.colors, connected: !!p.bot || online.has(p.id), bot: !!p.bot,
+      ...(p.bot ? { level: p.level ?? 'hard' } : {}),
     })),
+    options: room.options ?? DEFAULT_OPTIONS,
   };
 }
 
@@ -106,9 +108,9 @@ io.on('connection', (socket) => {
     return { code: room.code, playerId: player.id, token: player.token };
   }));
 
-  socket.on('room:solo', handler<{ name: string; role: Role }>(socket, ({ name, role }) => {
+  socket.on('room:solo', handler<{ name: string; role: Role; level?: BotLevel }>(socket, ({ name, role, level }) => {
     if (role !== 'jack' && role !== 'detective') throw new RoomError('Unknown role.');
-    const { room, player } = rooms.solo(name, role);
+    const { room, player } = rooms.solo(name, role, level ?? 'hard');
     enter(room, player.id);
     return { code: room.code, playerId: player.id, token: player.token };
   }));
@@ -124,7 +126,7 @@ io.on('connection', (socket) => {
     if (sess) { try { broadcast(rooms.get(sess.code)); } catch { /* room gone */ } }
   }));
 
-  socket.on('lobby:role', handler<{ playerId: string; role: Role }>(socket, ({ playerId, role }, sess) => {
+  socket.on('lobby:role', handler<{ playerId: string; role: LobbyRole }>(socket, ({ playerId, role }, sess) => {
     const { room, playerId: me } = inRoom(sess);
     rooms.setRole(room, me, playerId, role);
     broadcast(room);
@@ -136,9 +138,21 @@ io.on('connection', (socket) => {
     broadcast(room);
   }));
 
-  socket.on('lobby:bot', handler(socket, (_: unknown, sess) => {
+  socket.on('lobby:bot', handler<{ level?: BotLevel } | undefined>(socket, (arg, sess) => {
     const { room, playerId } = inRoom(sess);
-    rooms.addBot(room, playerId);
+    rooms.addBot(room, playerId, arg?.level ?? 'hard');
+    broadcast(room);
+  }));
+
+  socket.on('lobby:level', handler<{ playerId: string; level: BotLevel }>(socket, ({ playerId, level }, sess) => {
+    const { room, playerId: me } = inRoom(sess);
+    rooms.setLevel(room, me, playerId, level);
+    broadcast(room);
+  }));
+
+  socket.on('lobby:options', handler<Partial<GameOptions>>(socket, (options, sess) => {
+    const { room, playerId } = inRoom(sess);
+    rooms.setOptions(room, playerId, options ?? {});
     broadcast(room);
   }));
 

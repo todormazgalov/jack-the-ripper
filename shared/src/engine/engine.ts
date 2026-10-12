@@ -3,8 +3,8 @@ import {
   circlesAroundCrossing, crossingById, policeDestinations,
 } from '../map/graph.ts';
 import {
-  COLORS, CRIME_START, GAME_VERSION, GameError, HEADS, LAST_SLOT, NIGHTS, SLOT_COUNT, slotLabel,
-  type Action, type Color, type GameState, type Player, type Trail,
+  COLORS, CRIME_START, DEFAULT_OPTIONS, GAME_VERSION, GameError, HEADS, LAST_SLOT, NIGHTS, SLOT_COUNT, slotLabel,
+  type Action, type Color, type GameEvent, type GameOptions, type GameState, type Player, type Trail,
 } from './types.ts';
 
 const fail = (msg: string): never => { throw new GameError(msg); };
@@ -20,7 +20,7 @@ export function validatePlayers(players: Player[]): void {
   if (players.some((p) => p.role === 'jack' && p.colors.length)) fail('Jack cannot control policemen.');
 }
 
-export function createGame(players: Player[], rng: () => number = Math.random): GameState {
+export function createGame(players: Player[], rng: () => number = Math.random, options: GameOptions = DEFAULT_OPTIONS): GameState {
   validatePlayers(players);
   const headTiles = [...COLORS];
   for (let i = headTiles.length - 1; i > 0; i--) {
@@ -53,6 +53,8 @@ export function createGame(players: Player[], rng: () => number = Math.random): 
     log: [{ night: 1, text: 'London, 1888. Jack the Ripper chooses his hideout...' }],
     trails: [],
     version: GAME_VERSION,
+    options: { ...options },
+    events: [],
   };
 }
 
@@ -77,7 +79,7 @@ export function actors(s: GameState): string[] {
   switch (s.phase) {
     case 'hideout': case 'women': case 'kill': case 'reveal': case 'jackMove':
       return [jackPlayer(s).id];
-    case 'patrols': case 'wretched':
+    case 'patrols': case 'wretched': case 'hideoutGuess':
       return s.head ? [ownerOf(s, s.head).id] : [];
     case 'policeMove': case 'policeAction':
       return s.turn ? [s.turn.order[s.turn.index]] : [];
@@ -224,6 +226,14 @@ function recordCheck(s: GameState, circle: number, result: Trail['checks'][numbe
   currentTrail(s)?.checks.push({ slot: s.track!, circle, result });
 }
 
+/** Keeps the latest public events (the client animates the new ones). */
+function event(s: GameState, e: Omit<GameEvent, 'seq'>) {
+  s.events ??= [];
+  const seq = (s.events.at(-1)?.seq ?? 0) + 1;
+  s.events.push({ seq, ...e });
+  if (s.events.length > 30) s.events.splice(0, s.events.length - 30);
+}
+
 function afterJackMove(s: GameState, escape: boolean) {
   const loc = jackLocation(s)!;
   if (escape) {
@@ -232,6 +242,12 @@ function afterJackMove(s: GameState, escape: boolean) {
     const t = currentTrail(s);
     if (t) t.escaped = true;
     if (s.night === NIGHTS.length) {
+      if (s.options?.finalGuess) {
+        s.phase = 'hideoutGuess';
+        s.turn = null;
+        log(s, `Jack has escaped for the last time. One chance left: the detectives (led by ${HEADS[s.head!]}) must name his hideout.`);
+        return;
+      }
       finish(s, 'jack', 'Jack the Ripper has escaped after all four nights. Jack wins!');
       return;
     }
@@ -343,6 +359,7 @@ export function apply(state: GameState, playerId: string, action: Action): GameS
       log(s, 'The Head of the Investigation places the police patrol tokens.');
       // Hell 4: the victims are chosen
       s.wretched = s.women.filter((w) => w.marked).map((w) => w.circle);
+      s.nightTargets = [...s.wretched];
       log(s, `The women are revealed: wretched on ${s.wretched.join(', ')}.`);
       s.women = [];
       s.timeOfCrime = CRIME_START;
@@ -397,7 +414,7 @@ export function apply(state: GameState, playerId: string, action: Action): GameS
       const t = s.timeOfCrime!;
       v.forEach((c, i) => { s.sheet[s.night - 1][t + i] = c; });
       s.track = t + v.length - 1;
-      s.trails.push({ night: s.night, scenes: [...v], start: s.track, moves: [], checks: [], escaped: false });
+      s.trails.push({ night: s.night, scenes: [...v], start: s.track, moves: [], checks: [], escaped: false, targets: s.nightTargets ?? [] });
       log(s, `Murder! A crime scene appears on ${[...v].sort((a, b) => a - b).join(' and ')} at Time of the Crime ${slotLabel(t)}.`);
       // Hell 9: alarm whistles
       for (const p of s.patrols) if (p.color) s.policemen[p.color] = p.crossing;
@@ -427,7 +444,7 @@ export function apply(state: GameState, playerId: string, action: Action): GameS
       s.specials.push({ slot: s.track! + 1, kind: 'coach' });
       recordMove(s, action.via);
       recordMove(s, action.to);
-      recordTrail(s, 'coach', []);
+      recordTrail(s, 'coach', [...policeCrossings(s)]);
       log(s, `Hooves clatter on the cobblestones: Jack takes a coach (moves ${slotLabel(s.track! - 1)}-${slotLabel(s.track!)}).`);
       log(s, `You took a coach via ${action.via} to ${action.to}.`, true);
       afterJackMove(s, false);
@@ -440,7 +457,7 @@ export function apply(state: GameState, playerId: string, action: Action): GameS
       s.alleys--;
       s.specials.push({ slot: s.track! + 1, kind: 'alley' });
       recordMove(s, action.to);
-      recordTrail(s, 'alley', []);
+      recordTrail(s, 'alley', [...policeCrossings(s)]);
       log(s, `Jack slips through an alley (move ${slotLabel(s.track!)}).`);
       log(s, `You took an alley to ${action.to}.`, true);
       afterJackMove(s, false);
@@ -468,6 +485,7 @@ export function apply(state: GameState, playerId: string, action: Action): GameS
       const row = s.sheet[s.night - 1];
       const found = row.includes(action.circle);
       recordCheck(s, action.circle, found ? 'clue' : 'nothing');
+      event(s, { kind: 'search', circle: action.circle, color: action.color, from: s.policemen[action.color], result: found ? 'clue' : 'nothing' });
       if (found) {
         s.clues.push(action.circle);
         log(s, `The ${action.color} policeman searches ${action.circle}: a CLUE!`);
@@ -491,7 +509,9 @@ export function apply(state: GameState, playerId: string, action: Action): GameS
       if (s.turn!.searching?.color === action.color) fail('This policeman is already searching for clues.');
       if (s.turn!.searching) fail(`Finish the ${s.turn!.searching.color} policeman's search first.`);
       if (!arrestTargets(s, action.color).includes(action.circle)) fail('That circle is not adjacent to this policeman.');
-      if (jackLocation(s) === action.circle) {
+      const caught = jackLocation(s) === action.circle;
+      event(s, { kind: 'arrest', circle: action.circle, color: action.color, from: s.policemen[action.color], result: caught ? 'caught' : 'absent' });
+      if (caught) {
         log(s, `The ${action.color} policeman makes an arrest on ${action.circle}...`);
         finish(s, 'police', `Jack the Ripper is arrested on ${action.circle}! The police win!`);
         break;
@@ -514,6 +534,18 @@ export function apply(state: GameState, playerId: string, action: Action): GameS
       s.turn!.done.push(action.color);
       log(s, `The ${action.color} policeman takes no action.`);
       advancePolice(s);
+      break;
+    }
+
+    case 'guessHideout': {
+      if (s.phase !== 'hideoutGuess') fail('Not the time to guess the hideout.');
+      if (!circleById.has(action.circle)) fail('Unknown circle.');
+      if (RED_CIRCLES.includes(action.circle)) fail('The hideout cannot be on a red circle.');
+      const right = action.circle === s.hideout;
+      event(s, { kind: 'raid', circle: action.circle, result: right ? 'caught' : 'wrong' });
+      log(s, `The detectives raid circle ${action.circle}...`);
+      if (right) finish(s, 'police', `Jack the Ripper is found in his hideout on ${action.circle}! The police win!`);
+      else finish(s, 'jack', `Nobody on ${action.circle}: Jack's hideout was ${s.hideout}. Jack the Ripper wins!`);
       break;
     }
 

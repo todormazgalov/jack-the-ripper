@@ -1,4 +1,4 @@
-import { COLORS, HEADS, type Color } from '@jtr/shared';
+import { BOT_LEVELS, COLORS, HEADS, LEVEL_NAMES, type BotLevel, type Color } from '@jtr/shared';
 import { call } from './socket.ts';
 import { COLOR_HEX, type RoomInfo } from './types.ts';
 
@@ -27,12 +27,19 @@ export default function Lobby({ room, me, onLeave, onError }: Props) {
                 <td>
                   <span className={`dot ${p.connected ? 'on' : 'off'}`} /> {p.name}
                   {p.id === room.hostId && <em> (host)</em>}
+                  {p.bot && (
+                    <select className="bot-level" disabled={!isHost} value={p.level ?? 'hard'} title="Bot difficulty"
+                      onChange={(e) => run('lobby:level', { playerId: p.id, level: e.target.value as BotLevel })}>
+                      {BOT_LEVELS.map((l) => <option key={l} value={l}>{LEVEL_NAMES[l]}</option>)}
+                    </select>
+                  )}
                 </td>
                 <td>
                   <select disabled={!canEdit} value={p.role ?? 'detective'}
                     onChange={(e) => run('lobby:role', { playerId: p.id, role: e.target.value })}>
                     <option value="jack">Jack the Ripper</option>
                     <option value="detective">Detective</option>
+                    <option value="random">Random</option>
                   </select>
                 </td>
                 <td>
@@ -49,9 +56,15 @@ export default function Lobby({ room, me, onLeave, onError }: Props) {
           })}
         </tbody>
       </table>
+      <label className="option">
+        <input type="checkbox" disabled={!isHost} checked={room.options.finalGuess}
+          onChange={(e) => run('lobby:options', { finalGuess: e.target.checked })} />
+        {' '}Final hideout guess: if Jack escapes on the fourth night, the detectives get one guess at his hideout. A right guess wins the game for the police.
+      </label>
       <p className="hint">
         2 to 6 players: one Jack, the rest are detectives who share the 5 policemen. Unassigned policemen are
-        shared out automatically when the game starts. Every player plays in their own browser (or browser tab).
+        shared out automatically when the game starts. Random roles are drawn at the start: one of them
+        becomes Jack if nobody chose to be Jack, the others become detectives. Every player plays in their own browser (or browser tab).
         Bots can take any seat: they only see what their role is allowed to see.
       </p>
       <div className="row">

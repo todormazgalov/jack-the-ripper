@@ -44,7 +44,26 @@ export type Phase =
   | 'jackMove' // Hunting 1
   | 'policeMove' // Hunting 2
   | 'policeAction' // Hunting 3
+  | 'hideoutGuess' // optional: after Jack escapes on the last night, the detectives name his hideout
   | 'gameOver';
+
+/** Settings chosen in the lobby before the game starts. */
+export interface GameOptions {
+  /** after the fourth night the detectives get one guess at Jack's hideout: right means the police win */
+  finalGuess: boolean;
+}
+export const DEFAULT_OPTIONS: GameOptions = { finalGuess: true };
+
+/** A public moment worth animating (a search, an arrest attempt, the final raid). */
+export interface GameEvent {
+  seq: number;
+  kind: 'search' | 'arrest' | 'raid';
+  circle: number;
+  /** the policeman acting and the crossing he acts from (none for the raid) */
+  color?: Color;
+  from?: number;
+  result: 'clue' | 'nothing' | 'absent' | 'caught' | 'wrong';
+}
 
 export interface Woman { circle: number; marked: boolean }
 export interface Patrol { crossing: number; color: Color | null; revealed: boolean }
@@ -63,6 +82,8 @@ export interface Trail {
   /** search and arrest results. `slot`: Jack's track slot at that moment. */
   checks: { slot: number; circle: number; result: 'clue' | 'nothing' | 'absent' }[];
   escaped: boolean;
+  /** the marked women revealed that night (Jack picks targets he can get home from); missing in older saves */
+  targets?: number[];
 }
 
 export interface PoliceTurn {
@@ -105,6 +126,11 @@ export interface GameState {
   trails: Trail[];
   /** missing in games saved before GAME_VERSION 2 */
   version?: number;
+  /** missing in games saved before these features existed */
+  options?: GameOptions;
+  events?: GameEvent[];
+  /** tonight's revealed targets, kept until the murder starts tonight's trail */
+  nightTargets?: number[];
 }
 
 export type Action =
@@ -122,6 +148,7 @@ export type Action =
   | { type: 'policeMove'; color: Color; to: number }
   | { type: 'search'; color: Color; circle: number }
   | { type: 'arrest'; color: Color; circle: number }
-  | { type: 'policeSkip'; color: Color };
+  | { type: 'policeSkip'; color: Color }
+  | { type: 'guessHideout'; circle: number };
 
 export class GameError extends Error {}

@@ -297,9 +297,43 @@ describe('later nights', () => {
     s = act(s, { type: 'placePatrols', patrols: [...prev4, spare4[0], spare4[1]].map((crossing, i) => ({ crossing, color: i < 5 ? COLORS[i] : null })) });
     s = act(s, { type: 'kill', victims: [84] });
     s = escapeNight(s);
+    expect(s.crimeScenes).toHaveLength(5);
+    // the final guess (on by default): only the Head of the Investigation's player names the hideout
+    expect(s.phase).toBe('hideoutGuess');
+    const headOwner = s.players.find((p) => p.colors.includes(s.head!))!.id;
+    expect(() => apply(s, JACK, { type: 'guessHideout', circle: 1 })).toThrow(/not your turn/);
+    expect(() => apply(s, headOwner, { type: 'guessHideout', circle: 3 })).toThrow(/red/);
+    const right = apply(s, headOwner, { type: 'guessHideout', circle: s.hideout! });
+    expect(right.winner).toBe('police');
+    expect(right.events!.at(-1)).toMatchObject({ kind: 'raid', circle: s.hideout, result: 'caught' });
+    const wrongCircle = [1, 2].find((c) => c !== s.hideout)!;
+    const wrong = apply(s, headOwner, { type: 'guessHideout', circle: wrongCircle });
+    expect(wrong.phase).toBe('gameOver');
+    expect(wrong.winner).toBe('jack');
+    expect(wrong.winReason).toContain(String(s.hideout));
+  });
+
+  it('without the final guess option Jack wins as soon as he escapes on night 4', () => {
+    let s = toHunting(90, 65, createGame(players, fixedRng, { finalGuess: false }));
+    // jump to the last night's hunting
+    s.night = 4;
+    s.sheet[3] = s.sheet[0];
+    s = escapeNight(s);
     expect(s.phase).toBe('gameOver');
     expect(s.winner).toBe('jack');
-    expect(s.crimeScenes).toHaveLength(5);
+  });
+});
+
+describe('events for animations', () => {
+  it('searches and arrests are published with the acting policeman', () => {
+    let s = toHunting(90, 65);
+    s = act(s, { type: 'jackMove', to: jackNormalMoves(s)[0] });
+    s = policePassMovesOnly(s);
+    const c = pendingColors(s)[0];
+    const circle = searchTargets(s, c)[0];
+    s = act(s, { type: 'search', color: c, circle });
+    expect(s.events!.at(-1)).toMatchObject({ seq: 1, kind: 'search', color: c, circle, from: s.policemen[c] });
+    expect(viewFor(s, JACK).events).toEqual(viewFor(s, D1).events);
   });
 });
 

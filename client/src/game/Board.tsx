@@ -2,6 +2,7 @@ import { memo, useState, type ReactNode } from 'react';
 import { MAP, circleById, crossingById, type Color, type GameView } from '@jtr/shared';
 import { COLOR_HEX } from '../types.ts';
 import { usePanZoom } from './usePanZoom.tsx';
+import Effects from './Effects.tsx';
 
 export interface BoardProps {
   view: GameView;
@@ -81,6 +82,8 @@ export default function Board(p: BoardProps) {
   const pz = usePanZoom(W, H);
   const [photo, setPhoto] = useState(() => localStorage.getItem('jtr-photo') !== 'dim');
   const togglePhoto = () => setPhoto((v) => { localStorage.setItem('jtr-photo', v ? 'dim' : 'full'); return !v; });
+  const [fx, setFx] = useState(() => localStorage.getItem('jtr-fx') !== 'off');
+  const toggleFx = () => setFx((v) => { localStorage.setItem('jtr-fx', v ? 'off' : 'on'); return !v; });
   const click = pz.guard;
 
   const C = (id: number) => circleById.get(id)!;
@@ -199,6 +202,7 @@ export default function Board(p: BoardProps) {
         <image href={PHOTO} x={0} y={0} width={W} height={H} className="photo" />
         <VectorBoard />
         {layers}
+        {fx && <Effects events={view.events} />}
         {MAP.crossings.map((x) => (
           <rect key={`hx${x.id}`} x={x.x - 7} y={x.y - 7} width={14} height={14}
             className={`hit-x ${tx.has(x.id) ? 'target' : ''} ${p.selectedCrossing === x.id ? 'selected' : ''}`}
@@ -216,6 +220,9 @@ export default function Board(p: BoardProps) {
         ))}
       </svg>
       {pz.controls}
+      <button className="small secondary fx-toggle" onClick={toggleFx} title="Animate searches, arrests and the final raid">
+        Animations: {fx ? 'on' : 'off'}
+      </button>
       <button className="small secondary photo-toggle" onClick={togglePhoto} title="Fade the board photo to make the streets and numbers stand out">
         {photo ? 'Fade photo' : 'Show photo'}
       </button>
