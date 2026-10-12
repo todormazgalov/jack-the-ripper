@@ -25,6 +25,12 @@ const H = MAP.board.height;
 const PHOTO = '/board-hd.webp';
 const NIGHT_COLORS = ['#ffd84d', '#4dd2ff', '#ff7ad9', '#7dff7a'];
 
+/** The move track printed at the bottom of the board (V IV III II I, then 1..15), in board pixels. */
+const TRACK_Y = 775;
+const trackX = (slot: number) => (slot < 5 ? 216.7 + 40.4 * slot : 420 + 40.47 * (slot - 5));
+/** The Night track: four blood stains at the bottom right, nights 1 to 4. */
+const NIGHT_SPOTS = [[952, 570], [920, 622], [894, 697], [976, 713]];
+
 function Pawn({ x, y, fill, h = 18, stroke = '#111', onClick }: {
   x: number; y: number; fill: string; h?: number; stroke?: string; onClick?: () => void;
 }) {
@@ -159,6 +165,25 @@ export default function Board(p: BoardProps) {
       </g>,
     );
   }
+  // move track: special movement tokens, the Time of the Crime token and Jack's pawn
+  for (const sp of view.specials) {
+    const x1 = trackX(sp.slot) - 15;
+    const x2 = trackX(sp.kind === 'coach' ? sp.slot + 1 : sp.slot) + 15;
+    layers.push(
+      <g key={`sp${sp.slot}`} pointerEvents="none">
+        <rect x={x1} y={TRACK_Y - 13} width={x2 - x1} height={26} rx={13} className={`track-token ${sp.kind}`} />
+        <text x={(x1 + x2) / 2} y={TRACK_Y + 2.5} className="track-label">{sp.kind === 'coach' ? 'COACH' : 'ALLEY'}</text>
+      </g>,
+    );
+  }
+  if (view.timeOfCrime !== null) {
+    layers.push(<circle key="toc" cx={trackX(view.timeOfCrime)} cy={TRACK_Y} r={13} className="time-of-crime" />);
+  }
+  if (view.track !== null) {
+    layers.push(<Pawn key="track-jack" x={trackX(view.track)} y={TRACK_Y - 8} fill="#111" stroke="#f5f0e6" h={28} />);
+  }
+  const night = NIGHT_SPOTS[view.night - 1];
+  if (night) layers.push(<Pawn key="night-jack" x={night[0]} y={night[1] - 8} fill="#111" stroke="#f5f0e6" h={28} />);
   // policemen
   for (const [color, xid] of Object.entries(view.policemen) as [Color, number][]) {
     if (p.previewPatrols?.some((pp) => pp.crossing === xid)) continue;

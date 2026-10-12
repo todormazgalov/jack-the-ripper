@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   COLORS, CROSSING_IDS as CROSSINGS, GameError, LAST_SLOT, RED_CIRCLES, YELLOW_CROSSINGS, adjacentCircles, alleyDestinations,
   apply, circlesAroundCrossing, createGame, jackAlleyMoves, jackCoachMoves, jackLocation, jackNormalMoves,
-  legalWretchedMoves, pendingColors, policeMoveTargets, searchTargets, viewFor,
+  legalWretchedMoves, migrateGame, pendingColors, policeMoveTargets, searchTargets, slotLabel, viewFor,
   type Action, type GameState, type Player,
 } from '../src/index.ts';
 
@@ -69,7 +69,7 @@ describe('setup and hell phases', () => {
     expect(s.head).toBeTruthy();
     s = act(s, { type: 'placePatrols', patrols: defaultPatrols() });
     expect(s.wretched.sort((a, b) => a - b)).toEqual([3, 21, 27, 65, 84]);
-    expect(s.timeOfCrime).toBe(0);
+    expect(s.timeOfCrime).toBe(4); // slot of the Roman numeral I
     expect(viewFor(s, JACK).patrols.every((p) => p.color === 'hidden')).toBe(true);
     expect(viewFor(s, D2).patrols.filter((p) => p.color === null)).toHaveLength(2);
   });
@@ -88,7 +88,7 @@ describe('setup and hell phases', () => {
     s = act(s, { type: 'placePatrols', patrols: defaultPatrols() });
     for (let t = 0; t < 4; t++) {
       s = act(s, { type: 'wait' });
-      expect(s.timeOfCrime).toBe(t + 1);
+      expect(slotLabel(s.timeOfCrime!)).toBe(['II', 'III', 'IV', 'V'][t]);
       while (s.phase === 'wretched') {
         const from = s.wretchedPending[0];
         const moves = legalWretchedMoves(s, from);
@@ -104,8 +104,10 @@ describe('setup and hell phases', () => {
     expect(() => act(s, { type: 'wait' })).toThrow(/must kill/);
     const victim = s.wretched[0];
     s = act(s, { type: 'kill', victims: [victim] });
-    expect(s.sheet[0][4]).toBe(victim);
-    expect(s.track).toBe(4);
+    // killed on V: the move track gives Jack 4 extra moves (IV, III, II, I) before 1..15
+    expect(s.sheet[0][0]).toBe(victim);
+    expect(s.track).toBe(0);
+    expect(slotLabel(s.track! + 1)).toBe('IV');
     expect(s.phase).toBe('jackMove');
     expect(Object.keys(s.policemen).sort()).toEqual([...COLORS].sort());
     expect(s.wretched).toEqual([]);
@@ -157,7 +159,10 @@ describe('hunting', () => {
     let s = toHunting(90, 65);
     const to = jackNormalMoves(s)[0];
     s = act(s, { type: 'jackMove', to });
-    expect(s.sheet[0][1]).toBe(to);
+    // killed on I: the first move is 1
+    expect(s.sheet[0][4]).toBe(65);
+    expect(s.sheet[0][5]).toBe(to);
+    expect(slotLabel(s.track!)).toBe('1');
     expect(viewFor(s, D1).sheet).toBeNull();
     expect(viewFor(s, D1).jackLocation).toBeNull();
     expect(s.phase).toBe('policeMove');
@@ -167,14 +172,14 @@ describe('hunting', () => {
     expect(s.phase).toBe('jackMove');
     const [via, dest] = jackCoachMoves(s)[0];
     s = act(s, { type: 'coach', via, to: dest });
-    expect(s.sheet[0].slice(2, 4)).toEqual([via, dest]);
-    expect(s.specials).toEqual([{ slot: 2, kind: 'coach' }]);
+    expect(s.sheet[0].slice(6, 8)).toEqual([via, dest]);
+    expect(s.specials).toEqual([{ slot: 6, kind: 'coach' }]);
     expect(s.coaches).toBe(2);
     s = policePass(s);
     const alley = jackAlleyMoves(s)[0];
     expect(alleyDestinations(dest)).toContain(alley);
     s = act(s, { type: 'alley', to: alley });
-    expect(s.specials[1]).toEqual({ slot: 4, kind: 'alley' });
+    expect(s.specials[1]).toEqual({ slot: 8, kind: 'alley' });
   });
 
   it('policemen move up to two crossings and never share a crossing', () => {
@@ -275,9 +280,10 @@ describe('later nights', () => {
     s = act(s, { type: 'placePatrols', patrols: [...prev3, spare3[0], spare3[1]].map((crossing, i) => ({ crossing, color: i < 5 ? COLORS[i] : null })) });
     expect(() => act(s, { type: 'kill', victims: [27] })).toThrow(/exactly 2/);
     s = act(s, { type: 'kill', victims: [27, 3] });
-    expect(s.sheet[2].slice(0, 2)).toEqual([27, 3]);
+    // the two crime scenes fill I and 1
+    expect(s.sheet[2].slice(4, 6)).toEqual([27, 3]);
     expect(jackLocation(s)).toBe(3);
-    expect(s.track).toBe(1);
+    expect(s.track).toBe(5);
     expect(s.phase).toBe('policeMove');
     expect(viewFor(s, D1).jackLocation).toBeNull();
     s = policePass(s);
@@ -305,3 +311,25 @@ function policePassMovesOnly(s: GameState): GameState {
   }
   return s;
 }
+
+describe('saved games', () => {
+  it('converts the old track layout (I..V then 1..15) to the board layout (V..I then 1..15)', () => {
+    let s = toHunting(90, 65);
+    s = act(s, { type: 'jackMove', to: jackNormalMoves(s)[0] });
+    const route = s.sheet[0].filter((c) => c !== null);
+    // the same position as saved by the old version: kill on I = slot 0, first move on slot 1
+    const old = structuredClone(s);
+    delete old.version;
+    old.sheet[0] = [...route, ...Array(18).fill(null)];
+    old.track = 1;
+    old.timeOfCrime = 0;
+    old.trails[0].start = 0;
+    old.trails[0].moves[0].slot = 1;
+    const m = migrateGame(old);
+    expect(m.sheet[0]).toEqual(s.sheet[0]);
+    expect([m.track, m.timeOfCrime, m.trails[0].moves[0].slot]).toEqual([s.track, s.timeOfCrime, 5]);
+    // before the murder, the Time of the Crime was counted up from I
+    const waiting = { ...structuredClone(createGame(players, fixedRng)), version: undefined, timeOfCrime: 2 };
+    expect(slotLabel(migrateGame(waiting).timeOfCrime!)).toBe('III');
+  });
+});

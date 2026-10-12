@@ -81,18 +81,6 @@ svg.board { width: 100%; height: 100%; display: block; touch-action: none; user-
 .log .n { color: var(--muted); font-size: 0.8em; }
 .log .secret { color: #ff9a8f; font-style: italic; }
 
-/* move track */
-.track { display: flex; gap: 2px; padding: 6px; background: #241a14; overflow-x: auto; }
-.slot { position: relative; flex: 1; min-width: 38px; height: 46px; border: 1px solid #5a4636; border-radius: 6px; background: #3a2c22;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85em; }
-.slot.roman { background: #6b5a1e; }
-.slot.past { opacity: 0.75; }
-.slot .label { color: #fff8; }
-.slot .num { font-weight: bold; }
-.slot.crime { box-shadow: inset 0 0 0 3px #d22; }
-.slot.jack { outline: 3px solid #000; background: #111; }
-.slot.coach, .slot.alley { background: #33475e; }
-.slot .sp { position: absolute; top: 1px; right: 3px; font-size: 0.8em; }
 
 /* Jack's sheet */
 .sheet table { border-collapse: collapse; font-size: 0.72em; width: 100%; }
@@ -117,6 +105,11 @@ svg.board.dim .vec-x { fill: #cdb894; }
 .vec-c.red circle { fill: #b3201c; stroke: #5e0d0b; }
 .vec-c.red text { fill: #fff; }
 .photo-toggle { position: absolute; left: 8px; bottom: 8px; }
+.time-of-crime { fill: #c0141499; stroke: #6e0b08; stroke-width: 2.5; pointer-events: none; }
+.track-token { fill: #24384fe6; stroke: #0e1824; stroke-width: 1.5; }
+.track-token.alley { fill: #3c5f3ae6; }
+.track-label { font: bold 7px sans-serif; text-anchor: middle; fill: #f5f0e6; letter-spacing: 0.5px; }
+.sheet th.roman { background: #6b5a1e; }
 .hit-c { fill: transparent; cursor: pointer; }
 .hit-c.target { stroke: var(--target); stroke-width: 2.5; animation: pulse 1.2s ease-in-out infinite; }
 .hit-c.selected { stroke: #ff3df5; stroke-width: 3.5; animation: none; }

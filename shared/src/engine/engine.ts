@@ -3,7 +3,7 @@ import {
   circlesAroundCrossing, crossingById, policeDestinations,
 } from '../map/graph.ts';
 import {
-  COLORS, GameError, HEADS, LAST_SLOT, NIGHTS, SLOT_COUNT, slotLabel,
+  COLORS, CRIME_START, GAME_VERSION, GameError, HEADS, LAST_SLOT, NIGHTS, SLOT_COUNT, slotLabel,
   type Action, type Color, type GameState, type Player, type Trail,
 } from './types.ts';
 
@@ -52,6 +52,7 @@ export function createGame(players: Player[], rng: () => number = Math.random): 
     winReason: null,
     log: [{ night: 1, text: 'London, 1888. Jack the Ripper chooses his hideout...' }],
     trails: [],
+    version: GAME_VERSION,
   };
 }
 
@@ -245,6 +246,41 @@ function afterJackMove(s: GameState, escape: boolean) {
   startPoliceTurn(s, 'policeMove');
 }
 
+// ---------------------------------------------------------------- saved games
+
+/**
+ * Brings a game saved by an older version up to date. Before version 2 the track ran I..V then 1..15
+ * and the Time of the Crime moved right when Jack waited; now it runs V..I then 1..15 like the board.
+ * Each night's recorded route is shifted so the murder sits on the right Roman numeral.
+ */
+export function migrateGame(old: GameState): GameState {
+  if ((old.version ?? 1) >= GAME_VERSION) return old;
+  const s = structuredClone(old);
+  s.trails ??= [];
+  s.sheet.forEach((row, n) => {
+    const first = row.findIndex((c) => c !== null);
+    if (first < 0) return;
+    const last = row.length - 1 - [...row].reverse().findIndex((c) => c !== null);
+    const shift = Math.min(CRIME_START - 2 * first, LAST_SLOT - last);
+    s.sheet[n] = row.map((_, i) => row[i - shift] ?? null);
+    const t = s.trails.find((tr) => tr.night === n + 1);
+    if (t) {
+      t.start += shift;
+      for (const m of t.moves) m.slot += shift;
+      for (const c of t.checks) c.slot += shift;
+    }
+    if (n + 1 === s.night) {
+      if (s.track !== null) s.track += shift;
+      if (s.timeOfCrime !== null) s.timeOfCrime += shift;
+      for (const sp of s.specials) sp.slot += shift;
+    }
+  });
+  // still before the murder tonight: the Time of the Crime counted up from I
+  if (s.track === null && s.timeOfCrime !== null) s.timeOfCrime = CRIME_START - s.timeOfCrime;
+  s.version = GAME_VERSION;
+  return s;
+}
+
 // ---------------------------------------------------------------- apply
 
 export function apply(state: GameState, playerId: string, action: Action): GameState {
@@ -309,15 +345,15 @@ export function apply(state: GameState, playerId: string, action: Action): GameS
       s.wretched = s.women.filter((w) => w.marked).map((w) => w.circle);
       log(s, `The women are revealed: wretched on ${s.wretched.join(', ')}.`);
       s.women = [];
-      s.timeOfCrime = 0;
+      s.timeOfCrime = CRIME_START;
       s.phase = 'kill';
       break;
     }
 
     case 'wait': {
       if (s.phase !== 'kill') fail('Not the time to wait.');
-      if (s.timeOfCrime! >= 4) fail('The Time of the Crime is V: Jack must kill now.');
-      s.timeOfCrime!++;
+      if (s.timeOfCrime! <= 0) fail('The Time of the Crime is V: Jack must kill now.');
+      s.timeOfCrime!--;
       log(s, `Jack waits. The Time of the Crime advances to ${slotLabel(s.timeOfCrime!)}.`);
       s.phase = 'wretched';
       s.wretchedPending = [...s.wretched];

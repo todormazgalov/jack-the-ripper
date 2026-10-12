@@ -1,4 +1,4 @@
-import { LAST_SLOT, NIGHTS, type Action, type Trail } from '../engine/types.ts';
+import { CRIME_START, LAST_SLOT, NIGHTS, type Action, type Trail } from '../engine/types.ts';
 import type { GameView } from '../engine/view.ts';
 import { CIRCLE_IDS, RED_CIRCLES, alleyDestinations, circleNeighbors, coachRoutes } from '../map/graph.ts';
 import { alleyDist, minBy, reachCircle, shuffle, sum, walkDist } from './geo.ts';
@@ -60,8 +60,9 @@ function killOrWait(v: GameView, rng: Rng): Action {
   const kills = NIGHTS[v.night - 1].kills;
   const ranked = [...v.wretched].sort((a, b) => victimRisk(v, a) - victimRisk(v, b));
   const best = victimRisk(v, ranked[0]);
-  const mustKill = v.timeOfCrime! >= 4;
-  if (!mustKill && best > 1 && v.timeOfCrime! < 3 && rng() < 0.75) return { type: 'wait' };
+  const mustKill = v.timeOfCrime! <= 0;
+  const waited = CRIME_START - v.timeOfCrime!;
+  if (!mustKill && best > 1 && waited < 3 && rng() < 0.75) return { type: 'wait' };
   // Jack ends on the last victim, so the safest one goes last
   return { type: 'kill', victims: ranked.slice(0, kills).reverse() };
 }

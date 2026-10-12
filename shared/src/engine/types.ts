@@ -10,10 +10,18 @@ export const HEADS: Record<Color, string> = {
   green: 'Edmund Reid',
 };
 
-/** Move track: slots 0..4 are the yellow Roman numerals I..V, 5..19 are the moves 1..15. */
+/**
+ * Move track, in the board's left-to-right order: slots 0..4 are the yellow Roman numerals V IV III II I,
+ * slots 5..19 are the moves 1..15. The Time of the Crime starts on I and moves left each time Jack waits;
+ * Jack's pawn always moves right, so every wait gives him one more move to get home.
+ */
 export const SLOT_COUNT = 20;
 export const LAST_SLOT = SLOT_COUNT - 1;
-export const slotLabel = (slot: number) => (slot < 5 ? ['I', 'II', 'III', 'IV', 'V'][slot] : String(slot - 4));
+/** slot of the Roman numeral I, where the Time of the Crime starts */
+export const CRIME_START = 4;
+export const slotLabel = (slot: number) => (slot < 5 ? ['V', 'IV', 'III', 'II', 'I'][slot] : String(slot - 4));
+/** Saved games older than this used another track layout (see migrateGame). */
+export const GAME_VERSION = 2;
 
 export interface NightRules { date: string; coach: number; alley: number; women: number; marked: number; kills: number }
 export const NIGHTS: NightRules[] = [
@@ -95,6 +103,8 @@ export interface GameState {
   log: LogEntry[];
   /** one per night with a murder (missing in games saved before it existed) */
   trails: Trail[];
+  /** missing in games saved before GAME_VERSION 2 */
+  version?: number;
 }
 
 export type Action =

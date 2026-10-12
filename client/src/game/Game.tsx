@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  COLORS, HEADS, NIGHTS, RED_CIRCLES, YELLOW_CROSSINGS, arrestTargets, jackAlleyMoves, jackCoachMoves,
+  COLORS, HEADS, LAST_SLOT, NIGHTS, RED_CIRCLES, YELLOW_CROSSINGS, arrestTargets, jackAlleyMoves, jackCoachMoves,
   jackNormalMoves, legalWretchedMoves, policeMoveTargets, searchTargets, slotLabel,
   type Action, type Color, type GameState, type GameView,
 } from '@jtr/shared';
 import { call } from '../socket.ts';
 import { COLOR_HEX, type RoomInfo } from '../types.ts';
 import Board, { type BoardProps } from './Board.tsx';
-import { JackSheet, MoveTrack } from './Track.tsx';
+import { JackSheet } from './Track.tsx';
 import Log from './Log.tsx';
 
 interface Props { view: GameView; room: RoomInfo; onLeave: () => void }
@@ -167,13 +167,14 @@ export default function Game({ view, room, onLeave }: Props) {
           prompt: <>
             <p>Time of the Crime: <b>{slotLabel(view.timeOfCrime ?? 0)}</b>.
               {' '}Click {kills === 2 ? 'two wretched' : 'a wretched'} (the pulsing circles with a white figure) to choose your victim{kills === 2 ? 's' : ''}, then press Kill.</p>
-            <p className="hint">Or wait: the police move the wretched and you reveal a patrol, but you will have fewer moves to get home.</p>
+            <p className="hint">Or wait: the Time of the Crime moves one Roman numeral to the left, giving you one more move to get home,
+              but the police move the wretched and you must reveal a patrol.</p>
             {kills === 2 && <p className="hint">Double event: pick two victims. The <b>second</b> one is where you start your escape.</p>}
             <div className="row">
               <button className="danger" disabled={selC.length !== kills || busy} onClick={() => send({ type: 'kill', victims: selC })}>
                 {selC.length ? `Kill ${selC.join(' then ')}` : 'Kill (choose a victim first)'}
               </button>
-              <button className="secondary" disabled={(view.timeOfCrime ?? 0) >= 4 || busy} onClick={() => send({ type: 'wait' })}>Wait</button>
+              <button className="secondary" disabled={(view.timeOfCrime ?? 0) <= 0 || busy} onClick={() => send({ type: 'wait' })}>Wait</button>
             </div>
           </>,
           board: { targetCircles: targets, selectedCircles: selC, onCircle: toggle },
@@ -240,7 +241,7 @@ export default function Game({ view, room, onLeave }: Props) {
         const canAlley = jackAlleyMoves(gs).length > 0;
         return {
           prompt: <>
-            <p>Move <b>{slotLabel(moveNo)}</b>: you are on <b>{view.jackLocation}</b>, hideout <b>{view.hideout}</b>. Moves left after this one: {19 - moveNo}.</p>
+            <p>Move <b>{slotLabel(moveNo)}</b>: you are on <b>{view.jackLocation}</b>, hideout <b>{view.hideout}</b>. Moves left after this one: {LAST_SLOT - moveNo}.</p>
             <div className="row">
               <button className={mode === 'normal' ? '' : 'secondary'} onClick={() => { setMode('normal'); setSelC([]); }}>Walk</button>
               <button className={mode === 'coach' ? '' : 'secondary'} disabled={!canCoach} onClick={() => { setMode('coach'); setSelC([]); }}>Coach ({view.coaches})</button>
@@ -334,7 +335,6 @@ export default function Game({ view, room, onLeave }: Props) {
     <div className="game">
       <div className="main">
         <Board view={view} {...ctrl.board} />
-        <MoveTrack view={view} />
       </div>
       <aside className="side">
         <header>

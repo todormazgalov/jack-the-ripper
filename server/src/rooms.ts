@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  COLORS, actors, apply, botAction, createGame, fallbackAction, validatePlayers, viewFor,
+  COLORS, actors, apply, botAction, createGame, fallbackAction, migrateGame, validatePlayers, viewFor,
   type Action, type Color, type GameState, type Player, type Role,
 } from '@jtr/shared';
 
@@ -31,7 +31,7 @@ export class Rooms {
   constructor() {
     try {
       const data = JSON.parse(fs.readFileSync(SAVE_FILE, 'utf8')) as Room[];
-      for (const r of data) this.rooms.set(r.code, r);
+      for (const r of data) this.rooms.set(r.code, { ...r, game: r.game && migrateGame(r.game) });
       console.log(`Loaded ${data.length} saved room(s) from ${SAVE_FILE}`);
     } catch { /* no saves yet */ }
   }
