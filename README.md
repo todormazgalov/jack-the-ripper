@@ -93,7 +93,7 @@ Everything you can click right now pulses in cyan. The panel on the right explai
 
 | Phase | Who | What to do |
 |---|---|---|
-| Hideout | Jack | Click any non-red circle, confirm |
+| Hideout | Jack | Click any non-red circle (or press **Random hideout**, again to re-roll), confirm |
 | Women | Jack | Click the red circles that hold the *real* targets |
 | Patrols | Head of the Investigation | Pick a token (colour or fake) and click a crossing; click a placed token to take it back |
 | Kill / Wait | Jack | Click the victim(s) and press Kill, or press Wait |

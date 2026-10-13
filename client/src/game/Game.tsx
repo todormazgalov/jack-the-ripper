@@ -63,12 +63,21 @@ export default function Game({ view, room, onLeave }: Props) {
       case 'hideout': {
         if (!myTurn) return waiting(jackName, 'to choose a secret hideout');
         const targets = new Set(Array.from({ length: 195 }, (_, i) => i + 1).filter((c) => !RED_CIRCLES.includes(c)));
+        const randomHideout = () => {
+          const options = [...targets].filter((c) => c !== selC[0]);
+          setSelC([options[Math.floor(Math.random() * options.length)]]);
+        };
         return {
           prompt: <>
             <p>Choose your <b>hideout</b>: any circle except the red ones. You must return there every night.</p>
-            <button disabled={!selC.length || busy} onClick={() => send({ type: 'chooseHideout', circle: selC[0] })}>
-              Hide in {selC[0] ?? '...'}
-            </button>
+            <div className="row">
+              <button disabled={!selC.length || busy} onClick={() => send({ type: 'chooseHideout', circle: selC[0] })}>
+                Hide in {selC[0] ?? '...'}
+              </button>
+              <button className="secondary" disabled={busy} onClick={randomHideout} title="Pick a random circle; click again for another">
+                Random hideout
+              </button>
+            </div>
           </>,
           board: { targetCircles: targets, selectedCircles: selC, onCircle: (c) => targets.has(c) && setSelC([c]) },
         };
