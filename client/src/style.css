@@ -105,6 +105,14 @@ svg.board.dim .vec-x { fill: #cdb894; }
 .vec-c.red circle { fill: #b3201c; stroke: #5e0d0b; }
 .vec-c.red text { fill: #fff; }
 .photo-toggle { position: absolute; left: 8px; bottom: 8px; }
+/* Jack's route tonight (only Jack sees it) */
+.jack-route { fill: none; stroke: #6e0b08; stroke-width: 2.4; stroke-dasharray: 5 3; stroke-linejoin: round; stroke-linecap: round; opacity: 0.8; pointer-events: none; }
+.jack-step circle { fill: #6e0b08; stroke: #f5f0e6; stroke-width: 0.8; }
+.jack-step text { font: bold 5.5px sans-serif; text-anchor: middle; fill: #f5f0e6; }
+/* circles searched in vain tonight: deliberately faint */
+.searched circle { fill: #2a344038; stroke: #2a3440; stroke-width: 1.3; stroke-dasharray: 2 1.6; opacity: 0.85; }
+.searched path { stroke: #2a3440; stroke-width: 1.4; opacity: 0.85; }
+svg.board.dim .searched circle, svg.board.dim .searched path { stroke: #cdb894; }
 .time-of-crime { fill: #c0141499; stroke: #6e0b08; stroke-width: 2.5; pointer-events: none; }
 .track-token { fill: #24384fe6; stroke: #0e1824; stroke-width: 1.5; }
 .track-token.alley { fill: #3c5f3ae6; }

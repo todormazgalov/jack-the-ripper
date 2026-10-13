@@ -104,6 +104,10 @@ Everything you can click right now pulses in cyan. The panel on the right explai
 
 Use the mouse wheel to zoom and drag to pan. **Fit** resets the view.
 
+During the Hunting, Jack sees his own route for the night drawn on the map (a dashed line with
+numbered move badges). Everyone sees which circles the police have searched tonight without
+finding a clue (a faint dotted ring; a small × marks a failed arrest).
+
 ## Map data
 
 `shared/src/map/whitechapel.json` holds the board in board-image pixels (1200×803):

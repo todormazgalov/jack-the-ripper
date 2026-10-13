@@ -1,5 +1,5 @@
 import { memo, useState, type ReactNode } from 'react';
-import { MAP, circleById, crossingById, type Color, type GameView } from '@jtr/shared';
+import { MAP, circleById, crossingById, slotLabel, type Color, type GameView } from '@jtr/shared';
 import { COLOR_HEX } from '../types.ts';
 import { usePanZoom } from './usePanZoom.tsx';
 import Effects from './Effects.tsx';
@@ -101,6 +101,22 @@ export default function Board(p: BoardProps) {
     const c = C(cl);
     layers.push(<circle key={`cl${cl}`} cx={c.x} cy={c.y} r={11} className="clue" />);
   }
+  // tonight's police results (public): circles searched in vain, failed arrests
+  const tonight = view.trails.find((t) => t.night === view.night);
+  const checked = new Map<number, Set<string>>();
+  for (const ch of tonight?.checks ?? []) {
+    if (ch.result === 'clue' || view.clues.includes(ch.circle)) continue;
+    checked.set(ch.circle, (checked.get(ch.circle) ?? new Set()).add(ch.result));
+  }
+  for (const [id, results] of checked) {
+    const c = C(id);
+    layers.push(
+      <g key={`chk${id}`} className="searched" pointerEvents="none">
+        <circle cx={c.x} cy={c.y} r={11.5} />
+        {results.has('absent') && <path d={`M ${c.x + 7} ${c.y + 7} l 5 5 M ${c.x + 12} ${c.y + 7} l -5 5`} />}
+      </g>,
+    );
+  }
   // woman tokens (face down)
   for (const w of view.women) {
     const c = C(w.circle);
@@ -131,6 +147,27 @@ export default function Board(p: BoardProps) {
   if (view.hideout !== null) {
     const c = C(view.hideout);
     layers.push(<circle key="hideout" cx={c.x} cy={c.y} r={16} className="hideout" />);
+  }
+  // Jack's own route tonight (his secret sheet), from the crime scene to where he is now
+  if (view.sheet && view.track !== null && view.phase !== 'gameOver') {
+    const row = view.sheet[view.night - 1];
+    const from = tonight?.start ?? row.findIndex((v) => v !== null);
+    const steps: { slot: number; id: number }[] = [];
+    for (let i = Math.max(0, from); i <= view.track; i++) if (row[i] != null) steps.push({ slot: i, id: row[i]! });
+    if (steps.length > 1) {
+      layers.push(
+        <polyline key="jack-route" className="jack-route" points={steps.map((st) => `${C(st.id).x},${C(st.id).y}`).join(' ')} />,
+      );
+    }
+    steps.forEach((st, i) => {
+      const c = C(st.id);
+      layers.push(
+        <g key={`jr${st.slot}`} className="jack-step" pointerEvents="none">
+          <circle cx={c.x - 11} cy={c.y + 10} r={5} />
+          <text x={c.x - 11} y={c.y + 12.2}>{i === 0 ? '✝' : slotLabel(st.slot)}</text>
+        </g>,
+      );
+    });
   }
   if (view.jackLocation !== null && view.phase !== 'gameOver') {
     const c = C(view.jackLocation);
